@@ -15,3 +15,21 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: httpd-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/BasChimmy/argocd-poc
+    targetRevision: HEAD
+    path: app2
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: httpd-app
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
