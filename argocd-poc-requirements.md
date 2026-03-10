@@ -27,6 +27,78 @@ argocd-poc/
 
 ---
 
+## File Contents
+
+### `app/deployment.yaml`
+
+A simple nginx Deployment with 1 replica.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+```
+
+### `app/service.yaml`
+
+A ClusterIP Service exposing nginx on port 80.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  selector:
+    app: nginx
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+```
+
+### `argocd/argocd-nginx-app.yaml`
+
+ArgoCD Application manifest pointing to this repo.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/<your-username>/argocd-poc  # replace with actual repo URL
+    targetRevision: HEAD
+    path: app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nginx-app
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
+
+---
+
 ## Prerequisites
 
 Install the following tools on your local machine:
@@ -120,4 +192,3 @@ kubectl port-forward svc/nginx -n nginx-app 8888:80
 - `argocd app create -f` only supports `kind: Application` or `kind: ApplicationSet` — not generic Kubernetes resources
 - For multi-document YAML files (separated by `---`), split into individual files first before using `argocd app create -f`
 - `project: default` and `server: https://kubernetes.default.svc` are used here since this is a local minikube cluster with no custom ArgoCD projects
-- Before running step 4, update `argocd/argocd-nginx-app.yaml` and replace `<your-username>` in `repoURL` with your actual GitHub username
