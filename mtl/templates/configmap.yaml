@@ -5,3 +5,11 @@ metadata:
 data:
   APP_ENV: {{ .Values.app.env | quote }}
   APP_MESSAGE: {{ .Values.app.message | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: generic-{{ .Values.app.name }}-config
+data:
+  APP_ENV: {{ .Values.app.env | quote }}
+  APP_MESSAGE: {{ .Values.app.message | quote }}
