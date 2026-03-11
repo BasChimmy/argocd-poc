@@ -1,0 +1,15 @@
+replicaCount: 1
+
+image:
+  repository: httpd
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+app:
+  name: httpd-dev
+  env: "develop"
+  message: "Hello from httpd (develop cluster3)"

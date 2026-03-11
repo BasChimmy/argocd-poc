@@ -1,123 +1,125 @@
-# ArgoCD POC - Local Machine Setup with Minikube
+# ArgoCD POC - Multi-Cluster / Multi-Environment Setup
 
 ## Overview
 
-Proof of concept for deploying a basic nginx app using ArgoCD `app create -f` command with `--upsert` flag on a local minikube cluster.
+Proof of concept for deploying apps across 3 minikube clusters using 2 ArgoCD instances (production + develop).
 
-## Goals
+## Environment Map
 
-- Deploy ArgoCD on local minikube
-- Create an ArgoCD Application using a YAML manifest via CLI (`argocd app create -f`)
-- Demonstrate `--upsert` behavior (create if not exists, update if already exists)
-- Deploy a simple nginx app as the target application
-
----
+| ArgoCD | Port | Cluster | Apps |
+|--------|------|---------|------|
+| argocd-prod | 8080 | cluster1 | app (nginx), app2 (httpd) |
+| argocd-prod | 8080 | cluster2 | app3 (nginx-prod) |
+| argocd-dev  | 8081 | cluster3 | app4 (httpd-dev) |
 
 ## Repository Structure
 
 ```
 argocd-poc/
-├── README.md
-├── app/
-│   ├── deployment.yaml
-│   └── service.yaml
+├── app/                          # nginx - production (cluster1)
+├── app2/                         # httpd - production (cluster1)
+├── app3/                         # nginx - production (cluster2)
+├── app4/                         # httpd - develop   (cluster3)
 └── argocd/
-    └── argocd-nginx-app.yaml
+    ├── production/
+    │   ├── cluster1/
+    │   │   └── argocd-app.yaml   # app + app2 -> cluster1
+    │   └── cluster2/
+    │       └── argocd-app3.yaml  # app3 -> cluster2
+    └── develop/
+        └── cluster3/
+            └── argocd-app4.yaml  # app4 -> cluster3
 ```
 
 ---
 
 ## Prerequisites
 
-Install the following tools on your local machine:
-
-| Tool | Purpose | Install |
-|------|---------|---------|
-| minikube | Local Kubernetes cluster | `brew install minikube` |
-| kubectl | Kubernetes CLI | `brew install kubectl` |
-| argocd CLI | ArgoCD CLI | `brew install argocd` |
-| yq | YAML processor (optional) | `brew install yq` |
-
-> For Windows, replace `brew install` with `choco install`.
+| Tool | Install |
+|------|---------|
+| minikube | `brew install minikube` |
+| kubectl | `brew install kubectl` |
+| argocd CLI | `brew install argocd` |
 
 ---
 
 ## Setup Steps
 
-### 1. Start Minikube
+### 1. Start all 3 clusters
 
 ```bash
-minikube start
+make start-clusters
 ```
 
-### 2. Install ArgoCD
+### 2. Install ArgoCD on prod (cluster1) and dev (cluster3)
 
 ```bash
-kubectl create namespace argocd
-
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-# Wait for ArgoCD server to be ready
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=120s
+make install-argocd-prod
+make install-argocd-dev
+make wait-argocd-prod
+make wait-argocd-dev
 ```
 
-### 3. Access ArgoCD
+### 3. Port forward both ArgoCD UIs (each in a separate terminal)
 
 ```bash
-# Port forward ArgoCD server
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-
-# Get initial admin password
-argocd admin initial-password -n argocd
-
-# Login via CLI
-argocd login localhost:8080 --username admin --password <password> --insecure
+make port-forward-argocd-prod   # -> https://localhost:8080
+make port-forward-argocd-dev    # -> https://localhost:8081
 ```
 
-### 4. Apply ArgoCD Application via CLI
+### 4. Get passwords and login
 
 ```bash
-argocd app create -f argocd/argocd-nginx-app.yaml --upsert
+make get-password-prod
+make login-prod
+
+make get-password-dev
+make login-dev
 ```
 
-> `--upsert` means: create if not exists, update if already exists. Safe to run multiple times.
-
-### 5. Sync the Application
+### 5. Deploy apps
 
 ```bash
-argocd app sync nginx-app
+make deploy-prod   # cluster1: app + app2 | cluster2: app3
+make deploy-dev    # cluster3: app4
 ```
 
-### 6. Verify Deployment
+### 6. Sync
 
 ```bash
-# Check ArgoCD app status
-argocd app get nginx-app
+make sync-prod
+make sync-dev
+```
 
-# Check pods in target namespace
-kubectl get pods -n nginx-app
+### 7. Verify
 
-# Port forward to test nginx
-kubectl port-forward svc/nginx -n nginx-app 8888:80
-# Open http://localhost:8888
+```bash
+make verify
 ```
 
 ---
 
-## Expected Behavior
+## Port Forwards for Apps
 
-| Step | Expected Result |
-|------|----------------|
-| `argocd app create -f ... --upsert` | App `nginx-app` created in ArgoCD |
-| `argocd app sync nginx-app` | nginx Deployment and Service created in `nginx-app` namespace |
-| `kubectl get pods -n nginx-app` | 1 nginx pod running |
-| `curl http://localhost:8888` | nginx welcome page returned |
+| Target | Command | URL |
+|--------|---------|-----|
+| nginx (cluster1) | `make port-forward-nginx` | http://localhost:8888 |
+| httpd (cluster1) | `make port-forward-httpd` | http://localhost:8889 |
+| nginx-prod (cluster2) | `make port-forward-nginx-prod` | http://localhost:8890 |
+| httpd-dev (cluster3) | `make port-forward-httpd-dev` | http://localhost:8891 |
+
+---
+
+## Teardown
+
+```bash
+make cleanup
+```
 
 ---
 
 ## Notes
 
-- `argocd app create -f` only supports `kind: Application` or `kind: ApplicationSet` — not generic Kubernetes resources
-- For multi-document YAML files (separated by `---`), split into individual files first before using `argocd app create -f`
-- `project: default` and `server: https://kubernetes.default.svc` are used here since this is a local minikube cluster with no custom ArgoCD projects
-- Before running step 4, update `argocd/argocd-nginx-app.yaml` and replace `<your-username>` in `repoURL` with your actual GitHub username
+- argocd-prod (cluster1) also manages cluster2 via the `destination.server` field in the ArgoCD Application manifest — register cluster2 with: `argocd cluster add cluster2 --server localhost:8080 --insecure`
+- Update `repoURL` in all ArgoCD manifests under `argocd/` with your actual GitHub repo URL before deploying
+- `--upsert` makes `argocd app create -f` idempotent (safe to re-run)

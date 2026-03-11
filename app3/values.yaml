@@ -1,0 +1,15 @@
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+app:
+  name: nginx-prod
+  env: "production"
+  message: "Hello from nginx (production cluster2)"

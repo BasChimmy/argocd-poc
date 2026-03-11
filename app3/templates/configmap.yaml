@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.app.name }}-config
+data:
+  APP_ENV: {{ .Values.app.env | quote }}
+  APP_MESSAGE: {{ .Values.app.message | quote }}

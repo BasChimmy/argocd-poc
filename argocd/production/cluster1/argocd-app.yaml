@@ -13,7 +13,7 @@ spec:
       valueFiles:
         - values.yaml
   destination:
-    server: https://kubernetes.default.svc
+    server: https://cluster1.minikube.svc
     namespace: nginx-app
   syncPolicy:
     syncOptions:
@@ -34,7 +34,7 @@ spec:
       valueFiles:
         - values.yaml
   destination:
-    server: https://kubernetes.default.svc
+    server: https://cluster1.minikube.svc
     namespace: httpd-app
   syncPolicy:
     syncOptions:

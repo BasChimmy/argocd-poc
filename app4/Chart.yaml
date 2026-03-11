@@ -1,0 +1,6 @@
+apiVersion: v2
+name: httpd-dev
+description: A simple Apache HTTPD Helm chart for ArgoCD PoC - Develop (cluster3)
+type: application
+version: 0.1.0
+appVersion: "latest"

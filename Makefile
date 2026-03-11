@@ -1,67 +1,126 @@
-.PHONY: all start-minikube install-argocd wait-argocd port-forward-argocd get-password login deploy sync verify port-forward-nginx port-forward-httpd cleanup
+.PHONY: all \
+	start-clusters install-argocd-prod install-argocd-dev \
+	wait-argocd-prod wait-argocd-dev \
+	port-forward-argocd-prod port-forward-argocd-dev \
+	get-password-prod get-password-dev \
+	login-prod login-dev \
+	deploy-prod deploy-dev \
+	sync-prod sync-dev \
+	verify cleanup
 
-ARGOCD_PASSWORD ?= $(shell argocd admin initial-password -n argocd 2>/dev/null | head -1)
+ARGOCD_PROD_PASSWORD ?= $(shell KUBECONFIG=~/.kube/cluster1 argocd admin initial-password -n argocd 2>/dev/null | head -1)
+ARGOCD_DEV_PASSWORD  ?= $(shell KUBECONFIG=~/.kube/cluster3 argocd admin initial-password -n argocd 2>/dev/null | head -1)
 
-## Run full setup end-to-end (excluding port-forwards and login which require interaction)
-all: start-minikube install-argocd wait-argocd deploy sync
+## Run full setup end-to-end
+all: start-clusters install-argocd-prod install-argocd-dev wait-argocd-prod wait-argocd-dev deploy-prod deploy-dev sync-prod sync-dev
 
-## 1. Start minikube
-start-minikube:
-	minikube start
+## 1. Start all 3 minikube clusters
+start-clusters:
+	minikube start -p cluster1
+	minikube start -p cluster2
+	minikube start -p cluster3
 
-## 2. Install ArgoCD
-install-argocd:
-	kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-	kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+## 2a. Install ArgoCD on cluster1 (prod - manages cluster1 + cluster2)
+install-argocd-prod:
+	kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply --context=cluster1 -f -
+	kubectl apply --context=cluster1 -n argocd --server-side --force-conflicts \
+		-f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-## 2b. Wait for ArgoCD server to be ready
-wait-argocd:
-	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=120s
+## 2b. Install ArgoCD on cluster3 (dev - manages cluster3)
+install-argocd-dev:
+	kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply --context=cluster3 -f -
+	kubectl apply --context=cluster3 -n argocd --server-side --force-conflicts \
+		-f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-## 3a. Port forward ArgoCD UI (runs in foreground — open a separate terminal)
-port-forward-argocd:
-	kubectl port-forward svc/argocd-server -n argocd 8080:443
+## 3a. Wait for ArgoCD prod to be ready
+wait-argocd-prod:
+	kubectl wait --context=cluster1 --for=condition=ready pod \
+		-l app.kubernetes.io/name=argocd-server -n argocd --timeout=180s
 
-## 3b. Print initial admin password
-get-password:
-	argocd admin initial-password -n argocd
+## 3b. Wait for ArgoCD dev to be ready
+wait-argocd-dev:
+	kubectl wait --context=cluster3 --for=condition=ready pod \
+		-l app.kubernetes.io/name=argocd-server -n argocd --timeout=180s
 
-## 3c. Login to ArgoCD CLI (prompts for password if not set via ARGOCD_PASSWORD env var)
-login:
-	argocd login localhost:8080 --username admin --password $(ARGOCD_PASSWORD) --insecure
+## 4a. Port forward ArgoCD prod UI on :8080 (open a separate terminal)
+port-forward-argocd-prod:
+	kubectl port-forward --context=cluster1 svc/argocd-server -n argocd 8080:443
 
-## 4. Apply ArgoCD Application manifests with upsert (nginx + httpd)
-deploy:
-	argocd app create -f argocd/argocd-nginx-app.yaml --upsert
+## 4b. Port forward ArgoCD dev UI on :8081 (open a separate terminal)
+port-forward-argocd-dev:
+	kubectl port-forward --context=cluster3 svc/argocd-server -n argocd 8081:443
 
-## 5. Sync both applications
-sync:
-	argocd app sync nginx-app
-	argocd app sync httpd-app
+## 5a. Print initial admin password (prod)
+get-password-prod:
+	kubectl --context=cluster1 -n argocd get secret argocd-initial-admin-secret \
+		-o jsonpath="{.data.password}" | base64 -d && echo
 
-## 6a. Verify ArgoCD app status and pods (nginx)
+## 5b. Print initial admin password (dev)
+get-password-dev:
+	kubectl --context=cluster3 -n argocd get secret argocd-initial-admin-secret \
+		-o jsonpath="{.data.password}" | base64 -d && echo
+
+## 6a. Login to ArgoCD prod CLI
+login-prod:
+	argocd login localhost:8080 --username admin --password $(ARGOCD_PROD_PASSWORD) --insecure
+
+## 6b. Login to ArgoCD dev CLI
+login-dev:
+	argocd login localhost:8081 --username admin --password $(ARGOCD_DEV_PASSWORD) --insecure
+
+## 7a. Deploy production apps (cluster1: app+app2, cluster2: app3)
+deploy-prod:
+	argocd app create -f argocd/production/cluster1/argocd-app.yaml --upsert \
+		--server localhost:8080 --insecure
+	argocd app create -f argocd/production/cluster2/argocd-app3.yaml --upsert \
+		--server localhost:8080 --insecure
+
+## 7b. Deploy develop apps (cluster3: app4)
+deploy-dev:
+	argocd app create -f argocd/develop/cluster3/argocd-app4.yaml --upsert \
+		--server localhost:8081 --insecure
+
+## 8a. Sync all production apps
+sync-prod:
+	argocd app sync nginx-app    --server localhost:8080 --insecure
+	argocd app sync httpd-app    --server localhost:8080 --insecure
+	argocd app sync nginx-prod-app --server localhost:8080 --insecure
+
+## 8b. Sync all develop apps
+sync-dev:
+	argocd app sync httpd-dev-app --server localhost:8081 --insecure
+
+## 9. Verify all apps
 verify:
-	argocd app get nginx-app
-	kubectl get pods -n nginx-app
+	@echo "=== Production (argocd-prod :8080) ==="
+	argocd app get nginx-app      --server localhost:8080 --insecure
+	argocd app get httpd-app      --server localhost:8080 --insecure
+	argocd app get nginx-prod-app --server localhost:8080 --insecure
+	@echo "=== Develop (argocd-dev :8081) ==="
+	argocd app get httpd-dev-app  --server localhost:8081 --insecure
 
-## 6b. Verify ArgoCD app status and pods (httpd)
-verify-httpd:
-	argocd app get httpd-app
-	kubectl get pods -n httpd-app
-
-## 7a. Port forward nginx (runs in foreground — open a separate terminal, then visit http://localhost:8888)
+## Port forward nginx (cluster1) -> :8888
 port-forward-nginx:
-	kubectl port-forward svc/nginx -n nginx-app 8888:80
+	kubectl port-forward --context=cluster1 svc/nginx -n nginx-app 8888:80
 
-## 7b. Port forward httpd (runs in foreground — open a separate terminal, then visit http://localhost:8889)
+## Port forward httpd (cluster1) -> :8889
 port-forward-httpd:
-	kubectl port-forward svc/httpd -n httpd-app 8889:80
+	kubectl port-forward --context=cluster1 svc/httpd -n httpd-app 8889:80
+
+## Port forward nginx-prod (cluster2) -> :8890
+port-forward-nginx-prod:
+	kubectl port-forward --context=cluster2 svc/nginx-prod -n nginx-prod-app 8890:80
+
+## Port forward httpd-dev (cluster3) -> :8891
+port-forward-httpd-dev:
+	kubectl port-forward --context=cluster3 svc/httpd-dev -n httpd-dev-app 8891:80
 
 ## Tear everything down
 cleanup:
-	argocd app delete nginx-app --yes || true
-	argocd app delete httpd-app --yes || true
-	kubectl delete namespace nginx-app --ignore-not-found
-	kubectl delete namespace httpd-app --ignore-not-found
-	kubectl delete namespace argocd --ignore-not-found
-	minikube stop
+	argocd app delete nginx-app       --server localhost:8080 --insecure --yes || true
+	argocd app delete httpd-app       --server localhost:8080 --insecure --yes || true
+	argocd app delete nginx-prod-app  --server localhost:8080 --insecure --yes || true
+	argocd app delete httpd-dev-app   --server localhost:8081 --insecure --yes || true
+	minikube stop -p cluster1
+	minikube stop -p cluster2
+	minikube stop -p cluster3
