@@ -9,6 +9,9 @@ spec:
     repoURL: https://github.com/BasChimmy/argocd-poc
     targetRevision: HEAD
     path: app
+    helm:
+      valueFiles:
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-app
