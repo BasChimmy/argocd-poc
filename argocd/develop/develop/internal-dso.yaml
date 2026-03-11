@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/BasChimmy/argocd-poc
     targetRevision: mulitenv
-    path: app4
+    path: internal-dso
     helm:
       valueFiles:
         - values.yaml

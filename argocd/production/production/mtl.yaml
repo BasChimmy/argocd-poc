@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/BasChimmy/argocd-poc
     targetRevision: mulitenv
-    path: app
+    path: mtl
     helm:
       valueFiles:
         - values.yaml
@@ -29,7 +29,7 @@ spec:
   source:
     repoURL: https://github.com/BasChimmy/argocd-poc
     targetRevision: mulitenv
-    path: app2
+    path: mtl-gateway
     helm:
       valueFiles:
         - values.yaml

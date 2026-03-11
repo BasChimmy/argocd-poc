@@ -69,12 +69,12 @@ login-dev:
 
 ## 7a. Deploy production apps (production: app+app2, cluster2: app3)
 deploy-prod:
-	argocd app create -f argocd/production/production/argocd-app.yaml --upsert \
+	argocd app create -f argocd/production/production/mtl.yaml --upsert \
 		--server localhost:8080 --insecure
 
 ## 7b. Deploy develop apps (develop: app4)
 deploy-dev:
-	argocd app create -f argocd/develop/develop/argocd-app4.yaml --upsert \
+	argocd app create -f argocd/develop/develop/internal-dso.yaml --upsert \
 		--server localhost:8081 --insecure
 
 ## 8a. Sync all production apps
