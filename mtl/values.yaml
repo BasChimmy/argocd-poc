@@ -12,4 +12,4 @@ service:
 app:
   name: nginx
   env: "production"
-  message: "Hello from nginx"
+  message: "Hello from nginx2"

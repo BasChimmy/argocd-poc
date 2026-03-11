@@ -79,12 +79,12 @@ deploy-dev:
 
 ## 8a. Sync all production apps
 sync-prod:
-	argocd app sync nginx-app    --server localhost:8080 --insecure
-	argocd app sync httpd-app    --server localhost:8080 --insecure
+	argocd app sync mtl-tenant    --server localhost:8080 --insecure
+	argocd app sync mtl-gateway    --server localhost:8080 --insecure
 
 ## 8b. Sync all develop apps
 sync-dev:
-	argocd app sync httpd-dev-app --server localhost:8081 --insecure
+	argocd app sync internal-dso-tenant --server localhost:8081 --insecure
 
 ## 9. Verify all apps
 verify:
@@ -96,15 +96,15 @@ verify:
 	argocd app get httpd-dev-app  --server localhost:8081 --insecure
 
 ## Port forward nginx (production) -> :8888
-port-forward-nginx:
+port-forward-mtl-tenant:
 	kubectl port-forward --context=production svc/nginx -n nginx-app 8888:80
 
 ## Port forward httpd (production) -> :8889
-port-forward-httpd:
+port-forward-mtl-gateway:
 	kubectl port-forward --context=production svc/httpd -n httpd-app 8889:80
 
 ## Port forward httpd-dev (develop) -> :8891
-port-forward-httpd-dev:
+port-forward-internal-dso-tenant:
 	kubectl port-forward --context=develop svc/httpd-dev -n httpd-dev-app 8891:80
 
 ## Tear everything down

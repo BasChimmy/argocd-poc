@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: httpd-dev-app
+  name: internal-dso-tenant
   namespace: argocd
 spec:
   project: default
