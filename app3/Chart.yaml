@@ -1,6 +1,0 @@
-apiVersion: v2
-name: nginx-prod
-description: A simple Nginx Helm chart for ArgoCD PoC - Production (cluster2)
-type: application
-version: 0.1.0
-appVersion: "latest"

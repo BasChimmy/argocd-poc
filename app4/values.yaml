@@ -12,4 +12,4 @@ service:
 app:
   name: httpd-dev
   env: "develop"
-  message: "Hello from httpd (develop cluster3)"
+  message: "Hello from httpd (develop develop)"

@@ -8,27 +8,27 @@ Proof of concept for deploying apps across 3 minikube clusters using 2 ArgoCD in
 
 | ArgoCD | Port | Cluster | Apps |
 |--------|------|---------|------|
-| argocd-prod | 8080 | cluster1 | app (nginx), app2 (httpd) |
+| argocd-prod | 8080 | production | app (nginx), app2 (httpd) |
 | argocd-prod | 8080 | cluster2 | app3 (nginx-prod) |
-| argocd-dev  | 8081 | cluster3 | app4 (httpd-dev) |
+| argocd-dev  | 8081 | develop | app4 (httpd-dev) |
 
 ## Repository Structure
 
 ```
 argocd-poc/
-├── app/                          # nginx - production (cluster1)
-├── app2/                         # httpd - production (cluster1)
+├── app/                          # nginx - production (production)
+├── app2/                         # httpd - production (production)
 ├── app3/                         # nginx - production (cluster2)
-├── app4/                         # httpd - develop   (cluster3)
+├── app4/                         # httpd - develop   (develop)
 └── argocd/
     ├── production/
-    │   ├── cluster1/
-    │   │   └── argocd-app.yaml   # app + app2 -> cluster1
+    │   ├── production/
+    │   │   └── argocd-app.yaml   # app + app2 -> production
     │   └── cluster2/
     │       └── argocd-app3.yaml  # app3 -> cluster2
     └── develop/
-        └── cluster3/
-            └── argocd-app4.yaml  # app4 -> cluster3
+        └── develop/
+            └── argocd-app4.yaml  # app4 -> develop
 ```
 
 ---
@@ -51,7 +51,7 @@ argocd-poc/
 make start-clusters
 ```
 
-### 2. Install ArgoCD on prod (cluster1) and dev (cluster3)
+### 2. Install ArgoCD on prod (production) and dev (develop)
 
 ```bash
 make install-argocd-prod
@@ -80,8 +80,8 @@ make login-dev
 ### 5. Deploy apps
 
 ```bash
-make deploy-prod   # cluster1: app + app2 | cluster2: app3
-make deploy-dev    # cluster3: app4
+make deploy-prod   # production: app + app2 | cluster2: app3
+make deploy-dev    # develop: app4
 ```
 
 ### 6. Sync
@@ -103,10 +103,10 @@ make verify
 
 | Target | Command | URL |
 |--------|---------|-----|
-| nginx (cluster1) | `make port-forward-nginx` | http://localhost:8888 |
-| httpd (cluster1) | `make port-forward-httpd` | http://localhost:8889 |
+| nginx (production) | `make port-forward-nginx` | http://localhost:8888 |
+| httpd (production) | `make port-forward-httpd` | http://localhost:8889 |
 | nginx-prod (cluster2) | `make port-forward-nginx-prod` | http://localhost:8890 |
-| httpd-dev (cluster3) | `make port-forward-httpd-dev` | http://localhost:8891 |
+| httpd-dev (develop) | `make port-forward-httpd-dev` | http://localhost:8891 |
 
 ---
 
@@ -120,6 +120,6 @@ make cleanup
 
 ## Notes
 
-- argocd-prod (cluster1) also manages cluster2 via the `destination.server` field in the ArgoCD Application manifest — register cluster2 with: `argocd cluster add cluster2 --server localhost:8080 --insecure`
+- argocd-prod (production) also manages cluster2 via the `destination.server` field in the ArgoCD Application manifest — register cluster2 with: `argocd cluster add cluster2 --server localhost:8080 --insecure`
 - Update `repoURL` in all ArgoCD manifests under `argocd/` with your actual GitHub repo URL before deploying
 - `--upsert` makes `argocd app create -f` idempotent (safe to re-run)

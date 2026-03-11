@@ -7,13 +7,13 @@ spec:
   project: default
   source:
     repoURL: https://github.com/BasChimmy/argocd-poc
-    targetRevision: multienv
+    targetRevision: mulitenv
     path: app
     helm:
       valueFiles:
         - values.yaml
   destination:
-    server: https://cluster1.minikube.svc
+    server: https://kubernetes.default.svc
     namespace: nginx-app
   syncPolicy:
     syncOptions:
@@ -28,13 +28,13 @@ spec:
   project: default
   source:
     repoURL: https://github.com/BasChimmy/argocd-poc
-    targetRevision: multienv
+    targetRevision: mulitenv
     path: app2
     helm:
       valueFiles:
         - values.yaml
   destination:
-    server: https://cluster1.minikube.svc
+    server: https://kubernetes.default.svc
     namespace: httpd-app
   syncPolicy:
     syncOptions:
